@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Assistant</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bubblegum+Sans&display=swap');
+
+        html, body {
+            margin: 0;
+            height: 100%;
+            font-family: 'Bubblegum Sans', cursive; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-color: rgb(163, 163, 211);
+        }
+
+        .container {
+            background-color: rgb(231, 180, 188);
+            width: 450px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        #welcomeText {
+            text-align: center;
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 15px;
+            line-height: 1.4;
+        }
+
+        #chat {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: scroll;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            background-color: #fafafa;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 10px 15px;
+            border-radius: 20px;
+            margin: 5px 0;
+            word-wrap: break-word;
+            font-size: 16px;
+        }
+
+        .user {
+            background-color: #2196F3;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+        }
+
+        .bot {
+            background-color: #4CAF50;
+            color: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+        }
+
+        #userInput {
+            width: 60%;
+            padding: 8px;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+        }
+
+        #sendBtn, #voiceBtn, #fileBtn, #cameraBtn {
+            width: 10%;
+            padding: 8px;
+            border-radius: 20px;
+            border: none;
+            margin-left: 3px;
+            background-color: #87c2e0;
+            color: white;
+            cursor: pointer;
+        }
+
+        #sendBtn:hover, #voiceBtn:hover, #fileBtn:hover, #cameraBtn:hover {
+            background-color: #daeb69;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 2%;
+        }
+
+        /* History button fixed on website */
+        #historyBtn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 14px;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        #historyBtn:hover { background: #555; }
+
+        /* History page */
+        #historyPage {
+            display: none;
+            width: 450px;
+            background-color: rgb(231, 180, 188);
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            padding: 20px;
+            flex-direction: column;
+        }
+
+        #historyPage h2 { text-align: center; }
+
+        .history-message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .history-user { background: #2196F3; color: white; }
+        .history-bot { background: #4CAF50; color: white; }
+
+        #backBtn {
+            margin-bottom: 10px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            align-self: flex-start;
+        }
+
+        #backBtn:hover { background: #1976d2; }
+
+        /* Camera & snapshot styles */
+        #camera, #snapshot { display:none; margin-top:10px; }
+    </style>
+</head>
+<body>
+
+    <!-- Chat Page -->
+    <div class="container" id="chatPage">
+        <div id="welcomeText">Hi 👋<br>This is Brownieee!</div>
+        <h1 id="heading" style="display:none;">Brownieee</h1>
+        <div id="chat"></div>
+        <div class="input-container">
+            <input type="text" id="userInput" placeholder="Type your message">
+            <button id="sendBtn">Send</button>
+            <button id="voiceBtn">🎤</button>
+            <button id="fileBtn">📎</button>
+            <button id="cameraBtn">📷</button>
+        </div>
+        <input type="file" id="fileInput" style="display:none;">
+        <video id="camera" width="200" height="150" autoplay></video>
+        <canvas id="snapshot"></canvas>
+    </div>
+
+    <!-- History Page -->
+    <div id="historyPage" class="container">
+        <button id="backBtn">⬅ Back</button>
+        <h2>Chat History</h2>
+        <div id="historyContent"></div>
+    </div>
+
+    <!-- Website fixed History button -->
+    <button id="historyBtn">History</button>
+
+    <script>
+        const chatDiv = document.getElementById("chat");
+        const input = document.getElementById("userInput");
+        const btn = document.getElementById("sendBtn");
+        const heading = document.getElementById("heading");
+        const welcomeText = document.getElementById("welcomeText");
+
+        const historyBtn = document.getElementById("historyBtn");
+        const chatPage = document.getElementById("chatPage");
+        const historyPage = document.getElementById("historyPage");
+        const historyContent = document.getElementById("historyContent");
+        const backBtn = document.getElementById("backBtn");
+
+        const voiceBtn = document.getElementById("voiceBtn");
+        const fileBtn = document.getElementById("fileBtn");
+        const fileInput = document.getElementById("fileInput");
+        const cameraBtn = document.getElementById("cameraBtn");
+        const camera = document.getElementById("camera");
+        const snapshot = document.getElementById("snapshot");
+
+        // Load saved sessions
+        let sessions = JSON.parse(localStorage.getItem("chatSessions")) || [];
+
+        // Start a new session on every page load
+        sessions.push([]);
+        let currentSessionIndex = sessions.length - 1;
+        localStorage.setItem("chatSessions", JSON.stringify(sessions));
+
+        function saveSessions() {
+            localStorage.setItem("chatSessions", JSON.stringify(sessions));
+        }
+
+        function addMessage(text, cls) {
+            const div = document.createElement("div");
+            div.className = "message " + cls;
+            div.innerText = text;
+            chatDiv.appendChild(div);
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+
+            // Save to current session
+            sessions[currentSessionIndex].push({ text, cls });
+            saveSessions();
+        }
+
+        function loadChat(sessionIndex) {
+            chatDiv.innerHTML = "";
+            sessions[sessionIndex].forEach(msg => {
+                const div = document.createElement("div");
+                div.className = "message " + msg.cls;
+                div.innerText = msg.text;
+                chatDiv.appendChild(div);
+            });
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+            currentSessionIndex = sessionIndex;
+        }
+
+        function updateHistory() {
+            historyContent.innerHTML = "";
+            sessions.forEach((session, index) => {
+                if(session.length === 0) return;
+                const div = document.createElement("div");
+                div.className = "history-message";
+                div.style.cursor = "pointer";
+
+                // First user message as heading
+                const firstUserMsg = session.find(msg => msg.cls === "user");
+                div.innerText = firstUserMsg ? firstUserMsg.text : session[0].text;
+
+                div.addEventListener("click", () => {
+                    historyPage.style.display = "none";
+                    chatPage.style.display = "flex";
+                    loadChat(index);
+                });
+                historyContent.appendChild(div);
+            });
+        }
+
+        async function sendMessage() {
+            const message = input.value.trim();
+            if (!message) return;
+
+            if (welcomeText.style.display !== "none") {
+                welcomeText.style.display = "none";
+                heading.style.display = "block";
+            }
+
+            addMessage(message, "user");
+            input.value = "";
+
+            // Simulate AI response
+            const reply = "AI response to: " + message;
+            addMessage(reply, "bot");
+
+            speak(reply); // text-to-speech
+            updateHistory();
+        }
+
+        btn.addEventListener("click", sendMessage);
+        input.addEventListener("keyup", e => { if(e.key === "Enter") sendMessage(); });
+
+        historyBtn.addEventListener("click", () => { chatPage.style.display = "none"; historyPage.style.display = "flex"; updateHistory(); });
+        backBtn.addEventListener("click", () => { historyPage.style.display = "none"; chatPage.style.display = "flex"; });
+
+        // Voice input
+        voiceBtn.addEventListener("click", () => {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = "en-US";
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            recognition.start();
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                input.value = transcript;
+                sendMessage();
+            };
+        });
+
+        // Text-to-Speech
+        function speak(text){
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = "en-US";
+            speechSynthesis.speak(utterance);
+        }
+
+        // File upload
+        fileBtn.addEventListener("click", ()=> fileInput.click());
+        fileInput.addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            addMessage("Uploaded file: " + file.name, "user");
+        });
+
+        // Camera capture
+        cameraBtn.addEventListener("click", async ()=>{
+            const stream = await navigator.mediaDevices.getUserMedia({video:true});
+            camera.srcObject = stream;
+            camera.style.display = "block";
+
+            setTimeout(()=>{
+                snapshot.width = camera.videoWidth;
+                snapshot.height = camera.videoHeight;
+                snapshot.getContext("2d").drawImage(camera, 0,0);
+                addMessage("Captured Image 📸", "user");
+                camera.style.display = "none";
+                stream.getTracks().forEach(track=>track.stop());
+            }, 3000);
+        });
+    </script>
+
+</body>
+</html>
